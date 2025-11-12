@@ -19,6 +19,7 @@ from .models import User
 
 # HTTP Bearer token security scheme
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
@@ -54,14 +55,17 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Get user_id from token
-    user_id: Optional[int] = payload.get("sub")
-    if user_id is None:
+    # Get user_id from token (JWT sub claim is a string)
+    user_id_str: Optional[str] = payload.get("sub")
+    if user_id_str is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Convert to integer
+    user_id = int(user_id_str)
 
     # Fetch user from database
     user = db.query(User).filter(User.id == user_id).first()
@@ -76,7 +80,7 @@ async def get_current_user(
 
 
 def get_optional_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security),
     db: Session = Depends(get_db)
 ) -> Optional[User]:
     """
@@ -93,9 +97,12 @@ def get_optional_current_user(
         if payload is None:
             return None
 
-        user_id = payload.get("sub")
-        if user_id is None:
+        user_id_str = payload.get("sub")
+        if user_id_str is None:
             return None
+
+        # Convert string to integer (JWT sub claim is a string)
+        user_id = int(user_id_str)
 
         user = db.query(User).filter(User.id == user_id).first()
         return user

@@ -92,7 +92,8 @@ class UserService:
             return None
 
         # Create and return token
-        token_data = {"sub": user.id, "username": user.username}
+        # JWT standard requires 'sub' to be a string, not an integer
+        token_data = {"sub": str(user.id), "username": user.username}
         access_token = create_access_token(token_data)
 
         return access_token
